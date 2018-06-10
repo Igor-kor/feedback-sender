@@ -245,7 +245,6 @@ class feedback
               console.log(msg);
               var msgtext = $.param(msg);
              console.log(msgtext);
-                        alert(1);
             $.ajax({
                 type: 'GET',
                 // в админке уже есть переменная ajaxurl
@@ -310,6 +309,14 @@ class feedback
                 $message .= $text[1] . ": " . $args[trim($text[0])] . "\r\n";
             }
         }
+        if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+            $ip = $_SERVER['HTTP_CLIENT_IP'];
+        } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+        } else {
+            $ip = $_SERVER['REMOTE_ADDR'];
+        }
+        $message .= "ip:".json_encode($ip)."\r\n";
         return $message;
     }
 
