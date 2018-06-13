@@ -82,6 +82,7 @@ class feedback
         require_once plugin_dir_path($this->file) . "senders/sender.php";
         require_once plugin_dir_path($this->file) . "senders/emailsender.php";
         require_once plugin_dir_path($this->file) . "senders/vksender.php";
+        require_once plugin_dir_path($this->file) . "recaptchalib.php";
     }
 
     // инициализация всего что нужно сделать
@@ -98,7 +99,18 @@ class feedback
         $this->add_action('wp_ajax_feedback', 'feedback_callback');
         $this->add_action('wp_ajax_nopriv_feedback', 'feedback_callback');
         $this->add_action('wp_head', 'js_variables');
+        $this->add_action('wp_head', 'recaptcha');
+
     }
+
+    // добавление для рекапчи
+    function recaptcha()
+    {
+        ?>
+        <script src='https://www.google.com/recaptcha/api.js'></script>
+        <?php
+    }
+
 
     //чтоб постоянно не писать в массиве
     private function add_action($action, $function)
@@ -120,13 +132,45 @@ class feedback
     // обработка запросв
     function feedback_callback()
     {
-        // отправляем сообщение
-        $response = $this->send($_REQUEST);
-
+        $this->options = get_option($this->option_name);
+        // если есть проверка на рекапчу
+        if (isset($this->options['_4']) && $this->options['_4'] === '_4') {
+            //todo: проверяем капчу
+            if ($this->valid_recaptcha($_REQUEST)) {
+                // отправляем сообщение
+                $response = $this->send($_REQUEST);
+            }
+        } else {
+            // отправляем сообщение
+            $response = $this->send($_REQUEST);
+        }
         // отправляем статус ок
         echo(json_encode(array('status' => 'ok', 'request_vars' => $_REQUEST, 'response' => $response)));
         // обязательно при работе с аяксом
         wp_die();
+    }
+
+    //проверка рекапчи
+    function valid_recaptcha($request)
+    {
+        // ваш секретный ключ
+        $this->options = get_option($this->option_name);
+        $secret = $this->options["_5"];
+        // пустой ответ
+        $response = null;
+        // проверка секретного ключа
+        $reCaptcha = new ReCaptcha($secret);
+        // if submitted check response
+        if ($request["g-recaptcha-response"]) {
+            $response = $reCaptcha->verifyResponse(
+                $this->getIpClient(),
+                $request["g-recaptcha-response"]
+            );
+        }
+        if ($response != null && $response->success) {
+            return true;
+        }
+        return false;
     }
 
     // отправление сообщения
@@ -217,6 +261,30 @@ class feedback
             'feedback_setting_section' // section
         );
 
+        add_settings_field(
+            '_3', // id
+            'отправка ip адреса клиента', // title
+            array($this, '_3_callback'), // callback
+            'feedback-admin', // page
+            'feedback_setting_section' // section
+        );
+
+        add_settings_field(
+            '_4', // id
+            'Рекапча', // title
+            array($this, '_4_callback'), // callback
+            'feedback-admin', // page
+            'feedback_setting_section' // section
+        );
+
+        add_settings_field(
+            '_5', // id
+            'secret recaptcha', // title
+            array($this, '_5_callback'), // callback
+            'feedback-admin', // page
+            'feedback_setting_section' // section
+        );
+
     }
 
     // вывод формы с заданными полями для проверки
@@ -227,15 +295,15 @@ class feedback
             $fields = array($fields);
         }
         ?>
-            <?php
-            foreach ($fields as $key) {
-                if (isset($key)) {
-                    $text = explode(':', $key);
-                    echo '<label>' . $text[1] . ':</label> <input class="testform" type="text" name="' . $text[0] . '"><br><br>';
-                }
+        <?php
+        foreach ($fields as $key) {
+            if (isset($key)) {
+                $text = explode(':', $key);
+                echo '<label>' . $text[1] . ':</label> <input class="testform" type="text" name="' . $text[0] . '"><br><br>';
             }
-            ?>
-            <input value="Тестовая отправка" type="button" onclick="jQuery(function ($) {
+        }
+        ?>
+        <input value="Тестовая отправка" type="button" onclick="jQuery(function ($) {
              var msg = {};
               Array.from($('.testform')).forEach(function ( el){
                   console.log(el);
@@ -257,8 +325,8 @@ class feedback
                 }
             });
         });return false;">
-            <br><br>
-            <textarea id="responseajax" readonly style="width: 400px;height: 50px"></textarea>
+        <br><br>
+        <textarea id="responseajax" readonly style="width: 400px;height: 50px"></textarea>
 
         <?php
     }
@@ -273,6 +341,35 @@ class feedback
         );
     }
 
+    // включить отправку айпи
+    public function _3_callback()
+    {
+        printf(
+            '<input type="checkbox" name="%s[_3]" id="_3" value="_3" %s> <label for="_3">Включено</label>',
+            $this->option_name,
+            (isset($this->options['_3']) && $this->options['_3'] === '_3') ? 'checked' : ''
+        );
+    }
+
+    //включить рекапчу
+    public function _4_callback()
+    {
+        printf(
+            '<input type="checkbox" name="%s[_4]" id="_4" value="_4" %s> <label for="_4">Включено</label>',
+            $this->option_name,
+            (isset($this->options['_4']) && $this->options['_4'] === '_4') ? 'checked' : ''
+        );
+    }
+
+    // рекапча секрет
+    public function _5_callback()
+    {
+        printf(
+            '<input class="regular-text" type="text" name="%s[_5]" id="_5" value="%s">',
+            $this->option_name,
+            isset($this->options['_5']) ? esc_attr($this->options['_5']) : ''
+        );
+    }
 
     // проверка сохранения полей настроек
     public function feedback_sanitize($input)
@@ -285,6 +382,19 @@ class feedback
         if (isset($input['_2'])) {
             $sanitary_values['_2'] = sanitize_text_field($input['_2']);
         }
+
+        if (isset($input['_3'])) {
+            $sanitary_values['_3'] = $input['_3'];
+        }
+
+        if (isset($input['_4'])) {
+            $sanitary_values['_4'] = $input['_4'];
+        }
+
+        if (isset($input['_5'])) {
+            $sanitary_values['_5'] = sanitize_text_field($input['_5']);
+        }
+
         return $sanitary_values;
     }
 
@@ -298,7 +408,8 @@ class feedback
     function checkfields($args)
     {
         $message = "";
-        $fields = explode(',', get_option($this->option_name)["_2"]);
+        $this->options = get_option($this->option_name);
+        $fields = explode(',', $this->options["_2"]);
         if (!is_array($fields)) {
             $fields = array($fields);
         }
@@ -309,6 +420,18 @@ class feedback
                 $message .= $text[1] . ": " . $args[trim($text[0])] . "\r\n";
             }
         }
+
+        if (isset($this->options['_3']) && $this->options['_3'] === '_3') {
+            $ip = $this->getIpClient();
+            $message .= "ip:" . json_encode($ip) . "\r\n";
+        }
+
+        return $message;
+    }
+
+    // озвращает айпи текущего клиента
+    function getIpClient()
+    {
         if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
             $ip = $_SERVER['HTTP_CLIENT_IP'];
         } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
@@ -316,9 +439,7 @@ class feedback
         } else {
             $ip = $_SERVER['REMOTE_ADDR'];
         }
-        $message .= "ip:".json_encode($ip)."\r\n";
-        return $message;
+        return $ip;
     }
-
 
 }

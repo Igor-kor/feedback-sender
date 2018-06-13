@@ -3,7 +3,7 @@
  * Plugin Name: Feedback-sender
  * Plugin URI: http://github.com/
  * Description: Отправка обратной связи
- * Version: 0.1
+ * Version: 0.2
  * Author: Шарангия Игорь
  * Author URI: http://vk.com/id117766113
  */
