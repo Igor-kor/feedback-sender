@@ -6,21 +6,6 @@
  * Date: 08.06.2018
  * Time: 16:11
  *
- * пример скрипта запроса
- * <script>jQuery(function($){
- * $.ajax({
- * type: "GET",
- * url: window.wp_data.ajax_url,
- * data: {
- * action : 'feedback'
- * },
- * success: function (response) {
- * console.log('AJAX response : ',response);
- * }
- * });
- * });</script>
- *
- *
  * WordPress Option Page generator http://jeremyhixon.com/wp-tools/option-page/
  */
 class feedback
@@ -72,6 +57,7 @@ class feedback
         $this->file = $file;
         $this->load_dependencies();
         $this->init();
+        //todo что-то не доделал
         if (is_admin()) ;
         $this->settings();
     }
@@ -99,7 +85,7 @@ class feedback
         $this->add_action('wp_ajax_feedback', 'feedback_callback');
         $this->add_action('wp_ajax_nopriv_feedback', 'feedback_callback');
         $this->add_action('wp_head', 'js_variables');
-        $this->add_action('wp_head', 'recaptcha');
+        $this->add_action('wp_footer', 'recaptcha');
 
     }
 
