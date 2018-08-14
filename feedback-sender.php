@@ -1,11 +1,12 @@
 <?php
 /**
  * Plugin Name: Feedback-sender
- * Plugin URI: http://github.com/
+ * Plugin URI: https://github.com/Igor-kor/feedback-sender
  * Description: Отправка обратной связи
- * Version: 0.2
+ * Version: 0.2.1
  * Author: Шарангия Игорь
- * Author URI: http://vk.com/id117766113
+ * Author URI: https://vk.com/id117766113
+ * GitHub Plugin URI: https://github.com/Igor-kor/feedback-sender
  */
 
 // Для того, чтобы этот файл не могли подключить вне WordPress
